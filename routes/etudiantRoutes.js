@@ -24,6 +24,14 @@ const {
 router.route('/')
     .get(getAllEtudiants)
     .post(createEtudiant);
+    // Health check endpoint
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+    });
+});
 router.get('/search', searchEtudiants);
 // ⚠️ IMPORTANT:  Cette route DOIT être avant /: id
 // Sinon "filiere" serait interprété comme un ID
