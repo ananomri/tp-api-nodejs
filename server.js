@@ -1,7 +1,7 @@
 // ============================================
 // IMPORTS
 // ============================================
-// Branche B : Application Express
+// Serveur Express principal - Application de gestion des étudiants
 const express = require('express');
 const dotenv = require('dotenv');
 const connectDB = require('./config/database');
@@ -74,7 +74,7 @@ app.listen(PORT, () => {
     ║   🚀 Serveur démarré avec succès!          ║
     ╠════════════════════════════════════════════╣
     ║   📍 URL: http://localhost:${PORT}             ║
-    ║   📚 API: http://localhost:${PORT}/api/etudiants║
+    ║   📚 API: http://localhost:${PORT}/api/etudiants ║
     ╚════════════════════════════════════════════╝
     `);
 });
