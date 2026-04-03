@@ -1,43 +1,12 @@
-name: CI - Tests
-
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
-jobs:
-  tests:
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [18, 20, 22]
-      fail-fast: false
-
-    name: Tests Node.js ${{ matrix.node-version }}
-
-    # ============================================
-    # VARIABLES D'ENVIRONNEMENT
-    # ============================================
-    env:
-      # Injecter le secret PORT comme variable d'environnement
-      PORT: ${{ secrets.PORT }}
-      # Pour les tests, on peut aussi définir une variable inline
-      NODE_ENV: test
-
-    steps:
-      - name: 📥 Checkout du code
-        uses: actions/checkout@v4
-
-      - name: 🟢 Installer Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-
-      - name: 📦 Installer les dépendances
-        run: npm ci
-
-      - name: 🧪 Lancer les tests
-        run: npm test
+  # ← Ajouter ceci
+  workflow_dispatch:
+    inputs:
+      raison:
+        description: 'Raison du lancement manuel'
+        required: false
+        default: 'Test manuel'
