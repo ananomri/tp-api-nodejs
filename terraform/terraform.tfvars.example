@@ -1,0 +1,18 @@
+# ============================================
+# Copiez ce fichier en `terraform.tfvars`
+# puis remplissez vos valeurs personnelles.
+# (terraform.tfvars est dans .gitignore — ne le commitez pas !)
+# ============================================
+
+# Votre IP publique (trouvée via : curl ifconfig.me)
+my_ip = "X.X.X.X/32"
+
+# Votre repo GitHub (HTTPS, public)
+app_repo = "https://github.com/VOTRE_USERNAME/tp-api-nodejs.git"
+
+# Branche à déployer
+app_branch = "main"
+
+# URI MongoDB Atlas (créer un cluster gratuit sur cloud.mongodb.com)
+# Format : mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/academie?retryWrites=true&w=majority
+mongodb_uri = "mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/academie?retryWrites=true&w=majority"

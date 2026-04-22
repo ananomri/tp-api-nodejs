@@ -1,10 +1,10 @@
 # ============================================
 # CONFIGURATION TERRAFORM
 # ============================================
-# Ce fichier décrit toute l'infrastructure :
-# - Une clé SSH
-# - Un pare-feu (Security Group)
-# - Un serveur (instance EC2)
+# Cette infrastructure crée :
+#   - Une clé SSH
+#   - Un Security Group (pare-feu)
+#   - Une instance EC2 qui s'auto-déploie via user_data
 #
 # Commandes :
 #   terraform init    → Préparer le projet
@@ -13,7 +13,6 @@
 #   terraform destroy → Tout supprimer
 # ============================================
 
-# ── Dire à Terraform qu'on utilise AWS ──
 terraform {
   required_version = ">= 1.0"
 
@@ -27,13 +26,9 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  # Les identifiants AWS sont lus automatiquement depuis
-  # les variables d'environnement (qu'on configurera à l'étape 1.6)
 }
 
-# ── Trouver automatiquement la bonne image de serveur ──
-# Au lieu de chercher manuellement l'identifiant de l'image Amazon Linux,
-# on demande à Terraform de trouver la plus récente pour nous.
+# ── Trouver automatiquement la dernière AMI Amazon Linux 2023 ──
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
@@ -55,10 +50,8 @@ data "aws_ami" "amazon_linux" {
 }
 
 # ════════════════════════════════════════
-# RESSOURCE 1 : La clé SSH
+# RESSOURCE 1 : Clé SSH
 # ════════════════════════════════════════
-# On envoie la clé PUBLIQUE à AWS.
-# La clé PRIVÉE reste sur votre ordinateur.
 resource "aws_key_pair" "tp_api_keypair" {
   key_name   = var.key_pair_name
   public_key = file(var.public_key_path)
@@ -70,41 +63,31 @@ resource "aws_key_pair" "tp_api_keypair" {
 }
 
 # ════════════════════════════════════════
-# RESSOURCE 2 : Le pare-feu (Security Group)
+# RESSOURCE 2 : Security Group (pare-feu)
 # ════════════════════════════════════════
-# Le pare-feu contrôle qui peut accéder au serveur et sur quels ports.
-#
-# Imaginez-le comme la porte d'entrée de votre serveur :
-# - Port 22 (SSH)  : ouvert uniquement à VOTRE IP → vous seul pouvez entrer
-# - Port 3000 (API): ouvert à tout le monde → tout le monde peut utiliser l'API
-# - Port 80 (HTTP) : ouvert à tout le monde → accès web standard
 resource "aws_security_group" "tp_api_sg" {
   name        = "tp-api-sg"
   description = "Pare-feu pour le TP API Node.js"
 
-  # ── Qui peut ENTRER ? ──
-
-  # Règle 1 : SSH — seulement depuis votre ordinateur
+  # SSH — uniquement depuis votre IP
   ingress {
     description = "SSH depuis mon IP uniquement"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = [var.my_ip]
-    # ⚠️ On ne met PAS 0.0.0.0/0 ici !
-    # Sinon n'importe qui pourrait tenter de se connecter en SSH.
   }
 
-  # Règle 2 : L'API Node.js — accessible par tout le monde
+  # API Node.js — public
   ingress {
-    description = "API Node.js (port 3000)"
+    description = "API + Frontend Node.js"
     from_port   = var.app_port
     to_port     = var.app_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]    # 0.0.0.0/0 = tout Internet
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Règle 3 : HTTP standard
+  # HTTP standard (au cas où on ajoute un reverse proxy plus tard)
   ingress {
     description = "HTTP"
     from_port   = 80
@@ -113,13 +96,12 @@ resource "aws_security_group" "tp_api_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # ── Qui peut SORTIR ? ──
-  # Le serveur peut accéder à tout Internet (pour télécharger des paquets, etc.)
+  # Sortie : tout autorisé
   egress {
     description = "Tout le trafic sortant"
     from_port   = 0
     to_port     = 0
-    protocol    = "-1"             # -1 = tous les protocoles
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -130,18 +112,27 @@ resource "aws_security_group" "tp_api_sg" {
 }
 
 # ════════════════════════════════════════
-# RESSOURCE 3 : Le serveur (instance EC2)
+# RESSOURCE 3 : Instance EC2 (auto-deploy via user_data)
 # ════════════════════════════════════════
-# C'est le serveur lui-même : une machine virtuelle dans le cloud.
-# - t2.micro = 1 CPU, 1 Go de RAM (petit mais suffisant et gratuit)
 resource "aws_instance" "tp_api" {
   ami                    = data.aws_ami.amazon_linux.id
   instance_type          = var.instance_type
   key_name               = aws_key_pair.tp_api_keypair.key_name
   vpc_security_group_ids = [aws_security_group.tp_api_sg.id]
 
-  # Profil IAM pour AWS Academy
+  # Profil IAM pour AWS Academy (laisser commenté si vous n'êtes pas en Academy)
   iam_instance_profile = "LabInstanceProfile"
+
+  # 🪄 Magie : on injecte le script de bootstrap
+  user_data = templatefile("${path.module}/user_data.sh.tpl", {
+    app_repo    = var.app_repo
+    app_branch  = var.app_branch
+    app_port    = var.app_port
+    mongodb_uri = var.mongodb_uri
+  })
+
+  # Forcer le remplacement de l'instance si user_data change
+  user_data_replace_on_change = true
 
   tags = {
     Name        = var.instance_name
@@ -150,6 +141,5 @@ resource "aws_instance" "tp_api" {
     ManagedBy   = "terraform"
   }
 
-  # S'assurer que le pare-feu est créé AVANT le serveur
   depends_on = [aws_security_group.tp_api_sg]
 }
