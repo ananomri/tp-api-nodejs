@@ -1,50 +1,48 @@
-// Importer Express et créer un routeur
+// ============================================
+// IMPORTS
+// ============================================
 const express = require('express');
 const router = express.Router();
 
-// Importer toutes les fonctions du contrôleur
 const {
-    getAllEtudiants,
-    getEtudiantById,
-    createEtudiant,
-    updateEtudiant,
-    deleteEtudiant,
-    getEtudiantsByFiliere,
-    searchEtudiants , // 🆕 AJOUTÉ
-    getInactiveEtudiants  // 🆕 AJOUTÉ
+  getAllEtudiants,
+  getEtudiantById,
+  createEtudiant,
+  updateEtudiant,
+  deleteEtudiant,
+  getEtudiantsByFiliere,
+  searchEtudiants,
+  getInactiveEtudiants
 } = require('../controllers/etudiantController');
 
 // ============================================
 // DÉFINITION DES ROUTES
 // ============================================
 
-// Route:  /api/etudiants
-// GET  → Liste tous les étudiants
-// POST → Crée un nouvel étudiant
+// GET  /api/etudiants       → liste tous les étudiants
+// POST /api/etudiants       → crée un nouvel étudiant
 router.route('/')
-    .get(getAllEtudiants)
-    .post(createEtudiant);
-    // Health check endpoint
-app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 'OK',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
-});
+  .get(getAllEtudiants)
+  .post(createEtudiant);
+
+// ⚠️ IMPORTANT: routes spécifiques AVANT /:id
+// sinon Express interprète "search" comme un ID
+
+// GET /api/etudiants/search?q=...  → recherche
 router.get('/search', searchEtudiants);
-// ⚠️ IMPORTANT:  Cette route DOIT être avant /: id
-// Sinon "filiere" serait interprété comme un ID
+
+// GET /api/etudiants/filiere/:filiere  → par filière
 router.get('/filiere/:filiere', getEtudiantsByFiliere);
+
+// GET /api/etudiants/inactive  → étudiants inactifs
 router.get('/inactive', getInactiveEtudiants);
-// Route: /api/etudiants/:id
-// GET    → Récupère un étudiant par ID
-// PUT    → Modifie un étudiant
-// DELETE → Supprime un étudiant
+
+// GET    /api/etudiants/:id  → un étudiant par ID
+// PUT    /api/etudiants/:id  → modifier
+// DELETE /api/etudiants/:id  → supprimer
 router.route('/:id')
-    .get(getEtudiantById)
-    .put(updateEtudiant)
-    .delete(deleteEtudiant);
-router.get('/search', searchEtudiants);
-// Exporter le routeur
+  .get(getEtudiantById)
+  .put(updateEtudiant)
+  .delete(deleteEtudiant);
+
 module.exports = router;

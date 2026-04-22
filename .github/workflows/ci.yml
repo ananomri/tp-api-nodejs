@@ -1,12 +1,61 @@
+name: CI - Tests
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  # ← Ajouter ceci
   workflow_dispatch:
     inputs:
       raison:
         description: 'Raison du lancement manuel'
         required: false
         default: 'Test manuel'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+      fail-fast: false
+
+    name: Tests Node.js ${{ matrix.node-version }}
+
+    # ============================================
+    # VARIABLES D'ENVIRONNEMENT
+    # ============================================
+    env:
+      # Injecter le secret PORT comme variable d'environnement
+      PORT: ${{ secrets.PORT }}
+      # Pour les tests, on peut aussi définir une variable inline
+      NODE_ENV: test
+      # Utiliser MongoDB en mémoire — aucune installation MongoDB requise
+      USE_MEMORY_DB: true
+
+    steps:
+      - name: 📥 Checkout du code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Installer Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: 📦 Installer les dépendances
+        run: npm ci
+
+      - name: 🧪 Lancer les tests
+        run: npm test
+
+      - name: 🚀 Smoke test — démarrer le serveur avec MongoDB en mémoire
+        run: |
+          node server.js &
+          SERVER_PID=$!
+          echo "Serveur démarré (PID $SERVER_PID)"
+          sleep 5
+          curl --fail http://localhost:${PORT:-3000}/ || (kill $SERVER_PID && exit 1)
+          echo "✅ Smoke test réussi — le serveur répond correctement"
+          kill $SERVER_PID
